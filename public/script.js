@@ -8,6 +8,7 @@ var myPeer = new Peer(undefined, {
 })
 const myVideo = document.createElement('video')
 let myId;
+let localStream;
 myVideo.muted = true
 const peers = {}
 
@@ -17,18 +18,38 @@ myPeer.on('open', async id => {
     console.log('Your Id: ', id)
     myId = id;
     try {
-        const localStream = await navigator.mediaDevices.getUserMedia({ 'video': true, 'audio': true });
-        addVideoStream(myVideo, localStream)
+        localStream = await navigator.mediaDevices.getUserMedia({ 'video': true, 'audio': true });
         console.log('Local Video Loaded. ', localStream)
     } catch(error) {
-        console.error('Failed to load local video. ', error)
+	try {
+		localStream = await navigator.mediaDevices.getUserMedia({ 'video': false, 'audio': true });
+		console.log('Local audio loaded')
+	} catch(error) {
+		console.log("Unable to load audio", error);
+	}
+	console.error("Unable to load video", error);
+    }
+    try {
+	addVideoStream(myVideo, localStream)
+    } catch(error) {
+	console.error("Unable to load local video element", error)
     }
 })
 
 myPeer.on('call', async call => {
     try {
         if (call.peer != myId) {
-            const localStream = await navigator.mediaDevices.getUserMedia({ 'video': true, 'audio': true });
+		try {
+        	    localStream = await navigator.mediaDevices.getUserMedia({ 'video': true, 'audio': true });
+		} catch(error) {
+			try {
+				localStream = await navigator.mediaDevices.getUserMedia({ 'video': false, 'audio': true });
+				console.log("Loaded local audio")
+			} catch(error) {
+				console.error("Unable to load local audio", error);
+			}
+			console.error("Unable to load local video", error);
+		}
             call.answer(localStream);
             console.log('Answered call with local stream.')
             console.log('   From User: ', call.peer)
@@ -58,11 +79,21 @@ socket.on("user-connected", async userId => {
     try {
         if (userId != myId) {
             console.log('User Connected: ' + userId)
-            const localStream = await navigator.mediaDevices.getUserMedia({ 'video': true, 'audio': true })
+	   try {
+            	localStream = await navigator.mediaDevices.getUserMedia({ 'video': true, 'audio': true })
+	   } catch(error) {
+		try {
+			localStream = await navigator.mediaDevices.getUserMedia({ 'video': false, 'audio': true });
+			console.log("Loaded local audio")
+		} catch(error) {
+			console.error("Unable to load local audio", error);
+		}
+		console.error("Unable to load local video", error);
+	   }
             connectToNewPeer(userId, localStream)
         }
     } catch(error) {
-
+	console.error("Unable to send stream", error);
     }
 })
 
